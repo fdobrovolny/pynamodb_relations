@@ -2,7 +2,7 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -10,7 +10,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ ]
+requirements = ['pynamodb==4.3.2', 'factory-boy']
 
 setup_requirements = ['pytest-runner', ]
 
@@ -31,7 +31,8 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    description="Pynamodb relations extends Pynamodb into fully fleged DOM with many-to-many and many-to-one relations and multiple entities inside one table.",
+    description="Pynamodb relations extends Pynamodb into fully fleged DOM with many-to-many and many-to-one relations"
+                " and multiple entities inside one table.",
     install_requires=requirements,
     license="MIT license",
     long_description=readme + '\n\n' + history,
