@@ -1,0 +1,7 @@
+DATABASE_NAME = "database"
+TABLE_NAME = "table_name"
+BILLING_MODE_NAME = "billing_mode"
+ENTITY_NAME = "name"
+
+DEFAULT_TYPE_ATTRIBUTE_NAME = "type"
+DEFAULT_TYPE_ATTRIBUTE_PYTHON_NAME = "_type"

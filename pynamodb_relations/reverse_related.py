@@ -9,7 +9,7 @@ from .base import RegisterDatabaseLink
 from .utils import _range_key_attribute
 
 
-class Relation:
+class ReverseRelation:
     pass
 
 
@@ -68,7 +68,7 @@ class ForeignKeyRelationManager:
                 range_key_condition = range_key_attribute.startswith("")
             elif isinstance(range_key_attribute, attributes.StaticUnicodeAttribute):
                 range_key_condition = (
-                        range_key_attribute == range_key_attribute.static_value
+                    range_key_attribute == range_key_attribute.static_value
                 )
             else:
                 raise ValueError(
@@ -105,7 +105,7 @@ class ForeignKeyRelationManager:
                 range_key_condition = sort_key_attribute.startswith("")
             elif isinstance(sort_key_attribute, attributes.StaticUnicodeAttribute):
                 range_key_condition = (
-                        sort_key_attribute == sort_key_attribute.static_value
+                    sort_key_attribute == sort_key_attribute.static_value
                 )
             else:
                 raise ValueError(
@@ -115,7 +115,7 @@ class ForeignKeyRelationManager:
         return self.related.count(self.hash_key, range_key_condition, *args, **kwargs)
 
 
-class PrimaryKeyReverseForeignKeyRelation(Relation, RegisterDatabaseLink):
+class PrimaryKeyReverseForeignKeyRelation(ReverseRelation, RegisterDatabaseLink):
     """
     Reverse relation for item with FK to this object with same hash key using composite PK.
     """
@@ -131,7 +131,7 @@ class PrimaryKeyReverseForeignKeyRelation(Relation, RegisterDatabaseLink):
         if isinstance(self.related_model, str):
             if self._database is None:
                 raise AssertionError(
-                    "PrimaryKeyReverseForeignKeyRelation have model name supplied but was not hooked"
+                    "PrimaryKeyReverseForeignKeyRelation have model name supplied but was not hooked "
                     "up to the registry by BaseDatabase.register."
                 )
             self.related_model = self._database.get_model(self.related_model)

@@ -1,12 +1,115 @@
+from inspect import getmembers
+from typing import Type, TYPE_CHECKING
+
 from pynamodb.attributes import Attribute, MapAttribute
 from pynamodb.connection.util import pythonic
-from pynamodb.constants import ATTR_TYPE_MAP, ATTRIBUTES, NULL
-from pynamodb.models import Model as PynamoModel
+from pynamodb.constants import (
+    ATTR_TYPE_MAP,
+    ATTRIBUTES,
+    META_CLASS_NAME,
+    NULL,
+    REGION,
+)
+from pynamodb.models import (
+    DefaultMeta,
+    MetaModel as PynamoMetaModel,
+    Model as PynamoModel,
+)
 from pynamodb.types import HASH, RANGE
+from six import add_metaclass
 
-from .attributes import ProxiedAttributeMixin
+from pynamodb_relations.base import RegisterDatabaseLink
+from pynamodb_relations.constans import (
+    BILLING_MODE_NAME,
+    DATABASE_NAME,
+    DEFAULT_TYPE_ATTRIBUTE_NAME,
+    DEFAULT_TYPE_ATTRIBUTE_PYTHON_NAME,
+    ENTITY_NAME,
+    TABLE_NAME,
+)
+from pynamodb_relations.forward_related import ForwardRelation
+from pynamodb_relations.reverse_related import ReverseRelation
+from .attributes import ProxiedAttributeMixin, TypeAttribute
+
+if TYPE_CHECKING:
+    from pynamodb_relations.database import BaseDatabase
 
 
+class MetaModel(PynamoMetaModel):
+    def __init__(cls: "PynamoModel", name, bases, attrs):
+        super().__init__(name, bases, attrs)
+
+        cls._forward_relations = {
+            name: attr_obj
+            for name, attr_obj in attrs.items()
+            if isinstance(attr_obj, ForwardRelation)
+        }
+        cls._reverse_relations = {
+            name: attr_obj
+            for name, attr_obj in attrs.items()
+            if isinstance(attr_obj, ReverseRelation)
+        }
+
+        cls._type_attribute_name = None
+
+        if attrs[META_CLASS_NAME] is not DefaultMeta and not hasattr(
+            attrs[META_CLASS_NAME], DATABASE_NAME
+        ):
+            raise ValueError(
+                f"Model {name} does not have database specified in it's Meta options."
+            )
+        elif attrs[META_CLASS_NAME] is not DefaultMeta:
+            cls._database: Type["BaseDatabase"] = getattr(
+                attrs[META_CLASS_NAME], DATABASE_NAME
+            )
+            if not hasattr(attrs[META_CLASS_NAME], ENTITY_NAME):
+                raise ValueError(f"Model {name} does not have entity name specified.")
+            cls._database.register_model(
+                getattr(attrs[META_CLASS_NAME], ENTITY_NAME), cls
+            )
+
+            setattr(attrs[META_CLASS_NAME], TABLE_NAME, cls._database.table_name)
+            if hasattr(cls._database, REGION):
+                setattr(attrs[META_CLASS_NAME], REGION, getattr(cls._database, REGION))
+            if hasattr(cls._database, BILLING_MODE_NAME):
+                setattr(
+                    attrs[META_CLASS_NAME],
+                    BILLING_MODE_NAME,
+                    getattr(cls._database, BILLING_MODE_NAME),
+                )
+
+            for attr_name, attribute in cls.get_attributes().items():
+                if isinstance(attribute, TypeAttribute):
+                    if cls._type_attribute_name:
+                        raise ValueError(
+                            "The model has more than one Type attribute: {}, {}".format(
+                                cls._type_attribute_name, attr_name
+                            )
+                        )
+                    cls._type_attribute_name = attr_name
+                    attribute.static_value = getattr(
+                        attrs[META_CLASS_NAME], ENTITY_NAME
+                    )
+
+            for _, attribute in getmembers(
+                cls, lambda o: issubclass(o.__class__, RegisterDatabaseLink)
+            ):
+                attribute._database = cls._database
+
+            if cls._type_attribute_name is None:
+                attribute = TypeAttribute(
+                    static_value=getattr(attrs[META_CLASS_NAME], ENTITY_NAME),
+                    attr_name=DEFAULT_TYPE_ATTRIBUTE_NAME,
+                )
+
+                attrs[DEFAULT_TYPE_ATTRIBUTE_PYTHON_NAME] = attribute
+                cls._attributes[DEFAULT_TYPE_ATTRIBUTE_PYTHON_NAME] = attribute
+                cls._dynamo_to_python_attrs[
+                    DEFAULT_TYPE_ATTRIBUTE_NAME
+                ] = DEFAULT_TYPE_ATTRIBUTE_PYTHON_NAME
+
+
+@add_metaclass(MetaModel)
 class Model(PynamoModel):
     def _serialize(self, attr_map=False, null_check=True):
         """
@@ -49,7 +152,7 @@ class Model(PynamoModel):
 
         If some proxy value is based on value with default this will intialize it at model instance creation.
         """
-        super()._set_attributes(**attributes)
+        super(Model, self)._set_attributes(**attributes)
 
         for name, attr in [
             (name, attr)
@@ -60,7 +163,7 @@ class Model(PynamoModel):
 
     @classmethod
     def _serialize_keys(cls, hash_key, range_key=None):
-        serialized_hash_key, serialized_range_key = super()._serialize_keys(
+        serialized_hash_key, serialized_range_key = super(Model, cls)._serialize_keys(
             hash_key, range_key
         )
 
@@ -80,17 +183,19 @@ class Model(PynamoModel):
         return serialized_hash_key, serialized_range_key
 
     @classmethod
-    def scan(cls,
-             filter_condition=None,
-             segment=None,
-             total_segments=None,
-             limit=None,
-             last_evaluated_key=None,
-             page_size=None,
-             consistent_read=None,
-             index_name=None,
-             rate_limit=None,
-             attributes_to_get=None):
+    def scan(
+        cls,
+        filter_condition=None,
+        segment=None,
+        total_segments=None,
+        limit=None,
+        last_evaluated_key=None,
+        page_size=None,
+        consistent_read=None,
+        index_name=None,
+        rate_limit=None,
+        attributes_to_get=None,
+    ):
         """
         Iterates through all items in the table
 
@@ -109,12 +214,13 @@ class Model(PynamoModel):
 
     @classmethod
     def create_table(
-            cls,
-            wait=False,
-            read_capacity_units=None,
-            write_capacity_units=None,
-            billing_mode=None,
-            ignore_update_ttl_errors=False):
+        cls,
+        wait=False,
+        read_capacity_units=None,
+        write_capacity_units=None,
+        billing_mode=None,
+        ignore_update_ttl_errors=False,
+    ):
         """
         Create the table for this model
 
@@ -124,7 +230,8 @@ class Model(PynamoModel):
         :param billing_mode: Sets the billing mode provisioned (default) or on_demand for this table
         """
         raise NotImplementedError(
-            "Create table method on model is not possible. Please use `create_table` on Database.")
+            "Create table method on model is not possible. Please use `create_table` on Database."
+        )
 
     @classmethod
     def delete_table(cls):
@@ -132,13 +239,20 @@ class Model(PynamoModel):
         Delete the table for this model
         """
         raise NotImplementedError(
-            "Delete table method on model is not possible. Please use `create_table` on Database.")
+            "Delete table method on model is not possible. Please use `delete_table` on Database."
+        )
 
     @classmethod
     def dumps(cls):
         """
         Returns a JSON representation of this model's table
         """
-        raise NotImplementedError(
-            "Not implemented yet."
-        )
+        raise NotImplementedError("Not implemented yet.")
+
+    @classmethod
+    def get_forward_relations(cls):
+        return cls._forward_relations
+
+    @classmethod
+    def get_reverse_relations(cls):
+        return cls._reverse_relations
