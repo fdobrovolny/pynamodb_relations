@@ -103,6 +103,8 @@ class MetaModel(PynamoMetaModel):
                 )
 
                 attrs[DEFAULT_TYPE_ATTRIBUTE_PYTHON_NAME] = attribute
+                setattr(cls, DEFAULT_TYPE_ATTRIBUTE_PYTHON_NAME, attribute)
+                cls._type_attribute_name = DEFAULT_TYPE_ATTRIBUTE_PYTHON_NAME
                 cls._attributes[DEFAULT_TYPE_ATTRIBUTE_PYTHON_NAME] = attribute
                 cls._dynamo_to_python_attrs[
                     DEFAULT_TYPE_ATTRIBUTE_NAME
