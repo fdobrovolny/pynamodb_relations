@@ -10,7 +10,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['pynamodb==4.3.2', 'factory-boy']
+requirements = ['pynamodb==4.3.2']
 
 setup_requirements = ['pytest-runner', ]
 
