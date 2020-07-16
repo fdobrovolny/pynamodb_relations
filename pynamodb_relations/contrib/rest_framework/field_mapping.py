@@ -40,7 +40,8 @@ def get_relation_kwargs(field_name, relation_info: RelationInfo):
     """
     model_field, related_model, to_many, reverse = relation_info
     kwargs = {
-        'queryset': related_model,
+        # Relational field have to have a queryset but due to dynamodb nature we can't simply list all options
+        'queryset': [],
         'model_field': model_field,
     }
 
