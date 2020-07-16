@@ -3,7 +3,7 @@ from rest_framework import generics as original_generics, mixins
 
 class GenericPynamoDBAPIView(original_generics.GenericAPIView):
     pagination_class = None
-    filter_backends = None
+    filter_backends = []
 
     def get_object(self):
         raise NotImplementedError("Please implement this yourself.")
