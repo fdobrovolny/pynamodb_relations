@@ -3,9 +3,33 @@ from enum import Enum
 from typing import Any, Callable, Optional, Type, Union
 
 from dateutil.tz import tzutc
-from pynamodb.attributes import *
+from pynamodb import attributes as base_attributes
 from pynamodb.constants import NUMBER
 from pynamodb.models import Model
+
+
+class FieldMetadataMixin:
+    """
+    This mixins main prupose is to mimic Django fields as closely as possible.
+
+    (Mainly for restframework automatic api generation)
+
+    Attributes:
+        help_text: Extra help text to be displayed
+        verbose_name: "Nice" name of field to be displayed
+        editable: Does not have any real function. Only suggests user to not edit this field.
+
+    """
+    help_text: Optional[str]
+    verbose_name: Optional[str]
+    editable: bool = True
+
+    def __init__(self, *args, help_text: Optional[str] = None, verbose_name: Optional[str] = None,
+                 editable: bool = True, **kwargs):
+        self.help_text = help_text
+        self.verbose_name = verbose_name
+        self.editable = editable
+        super().__init__(*args, **kwargs)
 
 
 class ProxiedAttributeMixin:
@@ -60,6 +84,66 @@ class ProxiedAttributeMixin:
         )
 
 
+class Attribute(FieldMetadataMixin, base_attributes.Attribute):
+    pass
+
+
+class BinaryAttribute(FieldMetadataMixin, base_attributes.BinaryAttribute):
+    pass
+
+
+class BinarySetAttribute(FieldMetadataMixin, base_attributes.BinarySetAttribute):
+    pass
+
+
+class UnicodeSetAttribute(FieldMetadataMixin, base_attributes.UnicodeSetAttribute):
+    pass
+
+
+class UnicodeAttribute(FieldMetadataMixin, base_attributes.UnicodeAttribute):
+    pass
+
+
+class JSONAttribute(FieldMetadataMixin, base_attributes.JSONAttribute):
+    pass
+
+
+class BooleanAttribute(FieldMetadataMixin, base_attributes.BooleanAttribute):
+    pass
+
+
+class NumberSetAttribute(FieldMetadataMixin, base_attributes.NumberSetAttribute):
+    pass
+
+
+class NumberAttribute(FieldMetadataMixin, base_attributes.NumberAttribute):
+    pass
+
+
+class VersionAttribute(FieldMetadataMixin, base_attributes.VersionAttribute):
+    pass
+
+
+class TTLAttribute(FieldMetadataMixin, base_attributes.TTLAttribute):
+    pass
+
+
+class UTCDateTimeAttribute(FieldMetadataMixin, base_attributes.UTCDateTimeAttribute):
+    pass
+
+
+class NullAttribute(FieldMetadataMixin, base_attributes.NullAttribute):
+    pass
+
+
+class MapAttribute(FieldMetadataMixin, base_attributes.MapAttribute):
+    pass
+
+
+class ListAttribute(FieldMetadataMixin, base_attributes.ListAttribute):
+    pass
+
+
 class ProxiedUnicodeAttribute(UnicodeAttribute, ProxiedAttributeMixin):
     pass
 
@@ -84,7 +168,7 @@ class PrefixedUnicodeAttribute(UnicodeAttribute):
         if value is None:
             return value
         elif value.startswith(self.prefix):
-            return value[len(self.prefix) :]
+            return value[len(self.prefix):]
         else:
             raise AttributeError(
                 f"Prefix {self.prefix} was not found during deserialization in value '{str(value)}'"
@@ -128,8 +212,10 @@ class StaticUnicodeAttribute(UnicodeAttribute):
             default=static_value,
             default_for_new=None,
             attr_name=attr_name,
+            editable=False,
         )
         self.static_value = static_value
+        self.editable = False
 
     def serialize(self, value: str) -> str:
         if value != self.static_value:

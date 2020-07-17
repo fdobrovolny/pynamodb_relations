@@ -1,3 +1,6 @@
+from django.utils.text import capfirst
+from rest_framework.utils.field_mapping import needs_label
+
 from pynamodb_relations.attributes import Attribute, EnumAttributeMixin, ProxiedAttributeMixin, UnicodeAttribute
 from pynamodb_relations.contrib.rest_framework.model_meta import RelationInfo
 
@@ -16,7 +19,16 @@ def get_field_kwargs(field_name, model_field: Attribute):
     if max_digits is not None:
         kwargs['max_digits'] = max_digits
 
-    if isinstance(model_field, ProxiedAttributeMixin):
+    if hasattr(model_field, "verbose_name"):
+        if model_field.verbose_name and needs_label(model_field, field_name):
+            kwargs['label'] = capfirst(model_field.verbose_name)
+
+    help_text = getattr(model_field, "help_text", None)
+    if help_text is not None:
+        kwargs['help_text'] = help_text
+
+    editable = getattr(model_field, "editable", True)
+    if isinstance(model_field, ProxiedAttributeMixin) or not editable:
         # If this field is read-only, then return early.
         # Further keyword arguments are not valid.
         kwargs['read_only'] = True
@@ -49,6 +61,16 @@ def get_relation_kwargs(field_name, relation_info: RelationInfo):
         kwargs['many'] = True
 
     if model_field:
+        if hasattr(model_field, "verbose_name"):
+            if model_field.verbose_name and needs_label(model_field, field_name):
+                kwargs['label'] = capfirst(model_field.verbose_name)
+        help_text = getattr(model_field, "help_text", None)
+        if help_text:
+            kwargs['help_text'] = help_text
+        editable = getattr(model_field, "editable", True)
+        if not editable:
+            kwargs['read_only'] = True
+            kwargs.pop('queryset', None)
         if model_field.default or model_field.default_for_new or model_field.null:
             kwargs['required'] = False
         if model_field.null:
