@@ -5,7 +5,7 @@ from typing import Type
 
 from rest_framework import fields as rest_fields
 from rest_framework.fields import CharField, ChoiceField, ModelField
-from rest_framework.serializers import BaseSerializer, ModelSerializer
+from rest_framework.serializers import BaseSerializer, LIST_SERIALIZER_KWARGS, ListSerializer, ModelSerializer
 from rest_framework.settings import api_settings
 from rest_framework.utils.field_mapping import ClassLookupDict, get_nested_relation_kwargs
 
@@ -15,6 +15,7 @@ from pynamodb_relations.contrib.rest_framework.field_mapping import get_field_kw
 from pynamodb_relations.contrib.rest_framework.model_meta import FieldInfo
 from pynamodb_relations.contrib.rest_framework.relations import UnicodeRelatedField
 from pynamodb_relations.models import Model
+from pynamodb_relations.reverse_related import ForeignKeyRelationManager
 
 
 def raise_errors_on_nested_writes(method_name, serializer, validated_data):
@@ -92,6 +93,20 @@ def raise_errors_on_nested_writes(method_name, serializer, validated_data):
     )
 
 
+class PynamoListSerializer(ListSerializer):
+    def to_representation(self, data):
+        """
+        List of object instances -> List of dicts of primitive datatypes.
+        """
+        # Dealing with nested relationships, data can be a Manager,
+        # so, first get a queryset from the Manager if needed
+        iterable = data.query() if isinstance(data, ForeignKeyRelationManager) else data
+
+        return [
+            self.child.to_representation(item) for item in iterable
+        ]
+
+
 class PynamoModelSerializer(ModelSerializer):
     serializer_field_mapping = {
         attributes.NumberAttribute: rest_fields.IntegerField,
@@ -103,6 +118,38 @@ class PynamoModelSerializer(ModelSerializer):
         attributes.MapAttribute: rest_fields.DictField,
     }
     serializer_related_field = UnicodeRelatedField
+
+    @classmethod
+    def many_init(cls, *args, **kwargs):
+        """
+        This method implements the creation of a `ListSerializer` parent
+        class when `many=True` is used. You can customize it if you need to
+        control which keyword arguments are passed to the parent, and
+        which are passed to the child.
+
+        Note that we're over-cautious in passing most arguments to both parent
+        and child classes in order to try to cover the general case. If you're
+        overriding this method you'll probably want something much simpler, eg:
+
+        @classmethod
+        def many_init(cls, *args, **kwargs):
+            kwargs['child'] = cls()
+            return CustomListSerializer(*args, **kwargs)
+        """
+        allow_empty = kwargs.pop('allow_empty', None)
+        child_serializer = cls(*args, **kwargs)
+        list_kwargs = {
+            'child': child_serializer,
+        }
+        if allow_empty is not None:
+            list_kwargs['allow_empty'] = allow_empty
+        list_kwargs.update({
+            key: value for key, value in kwargs.items()
+            if key in LIST_SERIALIZER_KWARGS
+        })
+        meta = getattr(cls, 'Meta', None)
+        list_serializer_class = getattr(meta, 'list_serializer_class', PynamoListSerializer)
+        return list_serializer_class(*args, **list_kwargs)
 
     def get_fields(self):
         """
