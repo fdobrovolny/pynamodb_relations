@@ -60,7 +60,7 @@ def get_relation_kwargs(field_name, relation_info: RelationInfo):
     if to_many:
         kwargs['many'] = True
 
-    if model_field:
+    if model_field and not reverse:
         if hasattr(model_field, "verbose_name"):
             if model_field.verbose_name and needs_label(model_field, field_name):
                 kwargs['label'] = capfirst(model_field.verbose_name)
