@@ -110,6 +110,8 @@ class PynamoListSerializer(ListSerializer):
 class PynamoModelSerializer(ModelSerializer):
     serializer_field_mapping = {
         attributes.NumberAttribute: rest_fields.IntegerField,
+        attributes.DecimalAttribute: rest_fields.DecimalField,
+        attributes.FloatAttribute: rest_fields.FloatField,
         attributes.UnicodeAttribute: rest_fields.CharField,
         attributes.UTCDateTimeAttribute: rest_fields.DateTimeField,
         attributes.BooleanAttribute: rest_fields.BooleanField,
