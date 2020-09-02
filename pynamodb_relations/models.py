@@ -52,7 +52,11 @@ class MetaModel(PynamoMetaModel):
 
         cls._type_attribute_name = None
 
-        if attrs[META_CLASS_NAME] is not DefaultMeta and not hasattr(
+        if not META_CLASS_NAME in attrs:
+            raise ValueError(
+                f"Model {name} does not have Meta options."
+            )
+        elif attrs[META_CLASS_NAME] is not DefaultMeta and not hasattr(
             attrs[META_CLASS_NAME], DATABASE_NAME
         ):
             raise ValueError(
