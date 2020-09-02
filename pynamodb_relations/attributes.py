@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 from typing import Any, Callable, Optional, Type, Union
 
@@ -285,3 +286,19 @@ class UnicodeEnumAttribute(UnicodeAttribute, EnumAttributeMixin):
 
 class NumberEnumAttribute(NumberAttribute, EnumAttributeMixin):
     pass
+
+
+class DecimalAttribute(UnicodeAttribute):
+    def deserialize(self, value: str) -> Decimal:
+        return Decimal(value)
+
+    def serialize(self, value: Decimal) -> str:
+        return str(value)
+
+
+class FloatAttribute(UnicodeAttribute):
+    def deserialize(self, value: str) -> float:
+        return float(value)
+
+    def serialize(self, value: float) -> str:
+        return str(value)
